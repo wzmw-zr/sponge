@@ -8,7 +8,13 @@ using namespace std;
 
 void get_URL(const string &host, const string &path) {
     // Your code here.
-
+    TCPSocket tcp_socket = TCPSocket();
+    tcp_socket.connect(Address(host, "http"));
+    tcp_socket.write("GET " + path + " HTTP/1.1\r\n");
+    tcp_socket.write("Host: " + host + "\r\n");
+    tcp_socket.write("Connection: close\r\n");
+    tcp_socket.write("\r\n");
+    while (!tcp_socket.eof()) cout << tcp_socket.read();
     // You will need to connect to the "http" service on
     // the computer whose name is in the "host" string,
     // then request the URL path given in the "path" string.
@@ -17,8 +23,8 @@ void get_URL(const string &host, const string &path) {
     // (not just one call to read() -- everything) until you reach
     // the "eof" (end of file).
 
-    cerr << "Function called: get_URL(" << host << ", " << path << ").\n";
-    cerr << "Warning: get_URL() has not been implemented yet.\n";
+    // cerr << "Function called: get_URL(" << host << ", " << path << ").\n";
+    // cerr << "Warning: get_URL() has not been implemented yet.\n";
 }
 
 int main(int argc, char *argv[]) {

@@ -2,6 +2,25 @@
 #define SPONGE_LIBSPONGE_BYTE_STREAM_HH
 
 #include <string>
+#include <deque>
+
+struct Buffer {
+    size_t capacity;
+    size_t written_bytes;
+    size_t read_bytes;
+    std::deque<char> buff;
+
+    Buffer() = default;
+    Buffer(const size_t capacity);
+    size_t push(char c);
+    void pop();
+    bool empty() const;
+    size_t size() const;
+    size_t total_written() const;
+    size_t total_read() const;
+    size_t remain_capacity() const;
+    char operator[](int ind) const;
+};
 
 //! \brief An in-order byte stream.
 
@@ -11,11 +30,13 @@
 class ByteStream {
   private:
     // Your code here -- add private members as necessary.
-
+    Buffer buff;
+    bool end_of_sending;
     // Hint: This doesn't need to be a sophisticated data structure at
     // all, but if any of your tests are taking longer than a second,
     // that's a sign that you probably want to keep exploring
     // different approaches.
+
 
     bool _error{};  //!< Flag indicating that the stream suffered an error.
 

@@ -4,14 +4,14 @@
 #include <string>
 #include <deque>
 
-struct Buffer {
+struct ByteStreamBuffer {
     size_t capacity;
     size_t written_bytes;
     size_t read_bytes;
     std::deque<char> buff;
 
-    Buffer() = default;
-    Buffer(const size_t capacity);
+    ByteStreamBuffer() = default;
+    ByteStreamBuffer(const size_t capacity);
     size_t push(char c);
     void pop();
     bool empty() const;
@@ -30,7 +30,7 @@ struct Buffer {
 class ByteStream {
   private:
     // Your code here -- add private members as necessary.
-    Buffer buff;
+    ByteStreamBuffer buff;
     bool end_of_sending;
     // Hint: This doesn't need to be a sophisticated data structure at
     // all, but if any of your tests are taking longer than a second,

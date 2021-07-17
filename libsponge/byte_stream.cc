@@ -12,9 +12,9 @@ void DUMMY_CODE(Targs &&... /* unused */) {}
 
 using namespace std;
 
-Buffer::Buffer(const size_t size) : capacity(size), written_bytes(0), read_bytes(0), buff(deque<char>()) {}
+ByteStreamBuffer::ByteStreamBuffer(const size_t size) : capacity(size), written_bytes(0), read_bytes(0), buff(deque<char>()) {}
 
-size_t Buffer::push(char c) {
+size_t ByteStreamBuffer::push(char c) {
     if (!capacity) return 0;
     buff.push_back(c);
     capacity--;
@@ -22,34 +22,34 @@ size_t Buffer::push(char c) {
     return 1;
 }
 
-void Buffer::pop() {
+void ByteStreamBuffer::pop() {
     if (buff.empty()) return ;
     buff.pop_front();
     capacity++;
     read_bytes++;
 }
 
-bool Buffer::empty() const {
+bool ByteStreamBuffer::empty() const {
     return buff.empty();
 }
 
-size_t Buffer::size() const {
+size_t ByteStreamBuffer::size() const {
     return buff.size();
 }
 
-size_t Buffer::total_written() const {
+size_t ByteStreamBuffer::total_written() const {
     return written_bytes;
 }
 
-size_t Buffer::total_read() const {
+size_t ByteStreamBuffer::total_read() const {
     return read_bytes;
 }
 
-size_t Buffer::remain_capacity() const {
+size_t ByteStreamBuffer::remain_capacity() const {
     return capacity;
 }
 
-char Buffer::operator[](int ind) const {
+char ByteStreamBuffer::operator[](int ind) const {
     return buff[ind];
 }
 

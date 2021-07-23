@@ -9,6 +9,23 @@
 #include <functional>
 #include <queue>
 
+struct RetransmissionTimer {
+    unsigned int _rto;
+    unsigned int _wait_time;
+    uint64_t _bytes_in_flight{0};
+    bool _working;
+    unsigned int _consecutive_retransmission;
+    std::queue<TCPSegment> _que;
+
+    RetransmissionTimer() = default;
+    RetransmissionTimer(unsigned int rto) 
+        : _rto(rto)
+        , _wait_time(static_cast<unsigned int>(0))
+        , _working(false)
+        , _consecutive_retransmission(0)
+        , _que(std::queue<TCPSegment>()) {}
+};
+
 //! \brief The "sender" part of a TCP implementation.
 
 //! Accepts a ByteStream, divides it up into segments and sends the
@@ -31,6 +48,24 @@ class TCPSender {
 
     //! the (absolute) sequence number for the next byte to be sent
     uint64_t _next_seqno{0};
+    // ! the absolute sequence number of last received `acknowledge number`
+    uint64_t _last_recv_ackno{0};
+
+    //! 'window size' and 'remain window size'
+    uint16_t _receiver_window_size{1};
+    uint16_t _receiver_remain_size{1};
+
+    //! whether have transmitted when window size equals 0
+    bool _can_send_next{true};
+
+    //! retransmission timer
+    RetransmissionTimer _retransmission_timer;
+
+    //! states of TCPSender
+    enum States: int {closed, syn_sent, syn_acked, fin_sent, fin_acked};
+    int _state;
+
+    void send_segment(TCPSegment &seg);
 
   public:
     //! Initialize a TCPSender

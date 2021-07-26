@@ -3,6 +3,7 @@
 #include "tcp_config.hh"
 
 #include <random>
+#include <iostream>
 
 // Dummy implementation of a TCP sender
 
@@ -58,7 +59,9 @@ void TCPSender::fill_window() {
                 _state = fin_sent;
             } else {
                 // avoid buffer being empty (I don't know whether this will happpen).
-                seg.payload() = stream_in().buffer_empty() ? "" : stream_in().read(1);
+                // when buffer is empty, don't send any segment.
+                if (stream_in().buffer_empty()) return ;
+                seg.payload() = stream_in().read(1);
             }
             send_segment(seg);
             _can_send_next = false;
@@ -98,6 +101,8 @@ void TCPSender::fill_window() {
 void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_size) { 
     if (_state == closed) return ;
     uint64_t abs_ackno = unwrap(ackno, _isn, _next_seqno);
+    // If ackno is larger than the valid seqno (means this should be impossible to happen)
+    if (abs_ackno > _next_seqno) return ;
     //! pop the full acked segments.
     while (!_retransmission_timer._que.empty()) {
         uint64_t right = unwrap(_retransmission_timer._que.front().header().seqno, _isn, _next_seqno) + 
@@ -120,10 +125,10 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
         _can_send_next = true;
     }
     if (abs_ackno >= _last_recv_ackno) {
-        //! NOTE: handle same akno with different window size
-        uint16_t left = max(_last_recv_ackno + _receiver_window_size - _receiver_remain_size, abs_ackno);
-        uint16_t right = abs_ackno + window_size - static_cast<uint16_t>(1);
-        _receiver_remain_size = right >= left ? right - left + 1 : 0;
+        //! NOTE: handle same akno with different window size, and NOTE: Interger Type.
+        uint64_t left = max(_last_recv_ackno + static_cast<uint64_t>(_receiver_window_size - _receiver_remain_size), abs_ackno);
+        uint64_t right = abs_ackno + static_cast<uint64_t>(window_size - 1);
+        _receiver_remain_size = right >= left ? static_cast<uint16_t>(right - left + 1) : 0;
         _receiver_window_size = window_size;
         if (window_size) _can_send_next = true;
     }

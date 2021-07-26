@@ -57,14 +57,18 @@ ByteStream::ByteStream(const size_t capacity) : buff(capacity), end_of_sending(f
 
 size_t ByteStream::write(const string &data) {
     size_t len = 0;
-    for (char c : data) len += buff.push(c);
+    for (char c : data) {
+        if (buff.push(c) == 0) break;
+        len++;
+    }
     return len;
 }
 
 //! \param[in] len bytes will be copied from the output side of the buffer
 string ByteStream::peek_output(const size_t len) const {
     string s = "";
-    for (size_t i = 0; i < len; i++) s += buff[i];
+    size_t t_len = min(len, buff.size());
+    for (size_t i = 0; i < t_len; i++) s += buff[i];
     return s;
 }
 

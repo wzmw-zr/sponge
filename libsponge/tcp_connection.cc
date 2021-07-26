@@ -43,9 +43,8 @@ TCPSegment TCPConnection::get_segment() {
 
 //! prerequisites of clean shutdown 
 bool TCPConnection::connection_done() const {
-    if (_receiver.stream_out().eof() 
+    if (_receiver.stream_out().input_ended() 
         &&  _sender.stream_in().eof()
-        &&  (_sender.next_seqno_absolute() == _sender.stream_in().bytes_written() + 2)
         &&  (_sender.bytes_in_flight() == 0)) {
         if (!_linger_after_streams_finish) return true;
         if (time_since_last_segment_received() >= (static_cast<size_t>(_cfg.rt_timeout) * static_cast<size_t>(10))) return true;
@@ -60,22 +59,20 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
         //! unclean shutdown [receive]
         //! in LISTEN, RST should be ignored.
         if (state() == TCPState::State::LISTEN) return ;
+        if ((state() == TCPState::State::SYN_SENT) && !seg.header().ack) return ;
         _sender.stream_in().set_error();
         _receiver.stream_out().set_error();
-        //! if ackno is correct, don't need to reply.
-        if (seg.header().ackno == _sender.next_seqno()) return ;
-        TCPSegment reply = get_segment();
-        reply.header().rst = true;
-        _segments_out.push(reply);
         return ;
     }
-    if (seg.header().ack) _sender.ack_received(seg.header().ackno, seg.header().win);
-    else {
+    if (seg.header().ack) {
+        if ((state() == TCPState::State::SYN_SENT) && (seg.header().ackno != _sender.next_seqno())) return ;
+        _sender.ack_received(seg.header().ackno, seg.header().win);
+    } else {
         if (seg.header().syn && (state() == TCPState::State::LISTEN)) _sender.fill_window();
     }
     _receiver.segment_received(seg);
     //! if receiver reached EOF while sender not, clean shutdown passively.
-    if (_receiver.stream_out().eof() && !_sender.stream_in().eof()) _linger_after_streams_finish = false;
+    if (_receiver.stream_out().input_ended() && !_sender.stream_in().eof()) _linger_after_streams_finish = false;
     //! reply when incoming segment occupies any sequence numbers.
     if (seg.length_in_sequence_space() && _sender.segments_out().empty()) _sender.send_empty_segment();
     while (!_sender.segments_out().empty()) _segments_out.push(get_segment());

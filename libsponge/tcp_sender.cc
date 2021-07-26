@@ -119,7 +119,7 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
         _retransmission_timer._consecutive_retransmission = 0;
         _retransmission_timer._wait_time = 0;
         _retransmission_timer._rto = _initial_retransmission_timeout;
-        if (_state == syn_sent) _state = syn_acked;
+        if ((_state == syn_sent) && (abs_ackno == _next_seqno)) _state = syn_acked;
         if ((_state == fin_sent) && (abs_ackno == _next_seqno)) _state = fin_acked;
         _last_recv_ackno = abs_ackno;
         _can_send_next = true;

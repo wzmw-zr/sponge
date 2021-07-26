@@ -65,7 +65,6 @@ void TCPConnection::segment_received(const TCPSegment &seg) {
         return ;
     }
     if (seg.header().ack) {
-        if ((state() == TCPState::State::SYN_SENT) && (seg.header().ackno != _sender.next_seqno())) return ;
         _sender.ack_received(seg.header().ackno, seg.header().win);
     } else {
         if (seg.header().syn && (state() == TCPState::State::LISTEN)) _sender.fill_window();

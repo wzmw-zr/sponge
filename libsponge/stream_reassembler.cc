@@ -12,68 +12,113 @@ void DUMMY_CODE(Targs &&... /* unused */) {}
 
 using namespace std;
 
-StreamReassembler::StreamReassembler(const size_t capacity) : 
-    _output(capacity), _capacity(capacity), _st(set<Node>()) {}
-
-StreamReassembler::Node::Node(string _data, size_t _left, size_t _right, bool _eof) : 
-    data(_data), left(_left), right(_right), eof(_eof) {}
-
-bool StreamReassembler::Node::operator<(const struct Node &that) const {
-    return this->left == that.left ? this->right > that.right : this->left < that.right;
-}
-
-StreamReassembler::Node StreamReassembler::merge(StreamReassembler::Node &a, StreamReassembler::Node &b) {
-    if ((a.left >= b.left) && (a.right <= b.right)) {
-        b.eof |= a.eof;
-        return b;
-    }
-    if ((b.left >= a.left) && (b.right <= a.right)) {
-        a.eof |= b.eof;
-        return a;
-    }
-    int left = min(a.left, b.left);
-    int right = max(a.right, b.right);
-    string data(right - left + 1, ' ');
-    for (size_t i = a.left - left, j = 0; j < (a.right - a.left + 1); j++) data[i + j] = a.data[j];
-    for (size_t i = b.left - left, j = 0; j < (b.right - b.left + 1); j++) data[i + j] = b.data[j];
-    return Node(data, left, right, a.eof || b.eof);
-}
+StreamReassembler::StreamReassembler(const size_t capacity)
+    : _output(capacity), _capacity(capacity), _first_unacceptable(capacity) {}
 
 //! \details This function accepts a substring (aka a segment) of bytes,
 //! possibly out-of-order, from the logical stream, and assembles any newly
 //! contiguous substrings and writes them into the output stream in order.
 void StreamReassembler::push_substring(const string &data, const size_t index, const bool eof) {
-    int unread = _output.bytes_read();
-    int unassemble = _output.bytes_written();
-    int unacceptable = unread + _capacity;
-    int left = index, right = index + static_cast<int>(data.size()) - 1;
-    if (((left >= unacceptable) || (right < unassemble)) && 
-        !((left == unassemble) && (right == (unassemble - 1)))) return ;
-    int l = max(left, unassemble);
-    int r = min(right, unacceptable - 1);
-    string s = data.substr(l - index, r - l + 1);
-    bool is_eof = r == right ? eof : false;
-    Node temp(s, l, r, is_eof);
-    // Merge overlap substring
-    set<Node> rest;
-    for (auto node : _st) {
-        if ((node.left > temp.right) || (node.right < temp.left)) rest.insert(node);
-        else temp = merge(temp, node);
+    _first_unread = _output.bytes_read();
+    _first_unacceptable = _first_unread + _capacity;
+    seg new_seg = {index, data.length(), data};
+    _add_new_seg(new_seg, eof);
+    _stitch_output();
+    if (empty() && _eof)
+        _output.end_input();
+}
+
+void StreamReassembler::_add_new_seg(seg &new_seg, const bool eof) {
+    // check capacity limit, if unmeet limit, return
+    // cut the bytes in NEW_SEG that will overflow the _CAPACITY
+    // note that the EOF should also be cut
+    // cut the bytes in NEW_SEG that are already in _OUTPUT
+    // _HANDLE_OVERLAP()
+    // update _EOF
+    if (new_seg.index >= _first_unacceptable)
+        return;
+    bool eof_of_this_seg = eof;
+    if (int overflow_bytes = new_seg.index + new_seg.length - _first_unacceptable; overflow_bytes > 0) {
+        int new_length = new_seg.length - overflow_bytes;
+        if (new_length <= 0)
+            return;
+        eof_of_this_seg = false;
+        new_seg.length = new_length;
+        new_seg.data = new_seg.data.substr(0, new_seg.length);
     }
-    _st = rest;
-    _st.insert(temp);
-    // Assmemble substring.
-    while (!_st.empty() && _st.begin()->left == _output.bytes_written()) {
-        _output.write(_st.begin()->data);
-        if (_st.begin()->eof) _output.end_input();
-        _st.erase(_st.begin());
+    if (new_seg.index < _first_unassembled) {
+        int new_length = new_seg.length - (_first_unassembled - new_seg.index);
+        if (new_length <= 0)
+            return;
+        new_seg.length = new_length;
+        new_seg.data = new_seg.data.substr(_first_unassembled - new_seg.index, new_seg.length);
+        new_seg.index = _first_unassembled;
+    }
+    _handle_overlap(new_seg);
+    // if EOF was received before, it should remain valid
+    _eof = _eof || eof_of_this_seg;
+}
+
+void StreamReassembler::_handle_overlap(seg &new_seg) {
+    for (auto it = _stored_segs.begin(); it != _stored_segs.end();) {
+        auto next_it = ++it;
+        --it;
+        if ((new_seg.index >= it->index && new_seg.index < it->index + it->length) ||
+            (it->index >= new_seg.index && it->index < new_seg.index + new_seg.length)) {
+            _merge_seg(new_seg, *it);
+            _stored_segs.erase(it);
+        }
+        it = next_it;
+    }
+    _stored_segs.insert(new_seg);
+}
+
+void StreamReassembler::_stitch_output() {
+    // _FIRST_UNASSEMBLED is the expected next index_FIRST_UNASSEMBLED
+    // compare _STORED_SEGS.begin()->index with
+    // if equals, then _STITCH_ONE_SEG() and erase this seg from set
+    // continue compare until not equal or empty
+    while (!_stored_segs.empty() && _stored_segs.begin()->index == _first_unassembled) {
+        _stitch_one_seg(*_stored_segs.begin());
+        _stored_segs.erase(_stored_segs.begin());
     }
 }
 
-size_t StreamReassembler::unassembled_bytes() const { 
-    size_t cnt = 0;
-    for (auto node : _st) cnt += node.right - node.left + 1;
-    return cnt;
+void StreamReassembler::_stitch_one_seg(const seg &new_seg) {
+    // write string of NEW_SEG into _OUTPUT
+    // update _FIRST_UNASSEMBLED
+    _output.write(new_seg.data);
+    _first_unassembled += new_seg.length;
+    // both way of updating _FIRST_UNASSEMBLED is ok
+    // _first_unassembled = _output.bytes_written();
 }
 
-bool StreamReassembler::empty() const { return _st.empty(); }
+void StreamReassembler::_merge_seg(seg &new_seg, const seg &other) {
+    size_t n_index = new_seg.index;
+    size_t n_end = new_seg.index + new_seg.length;
+    size_t o_index = other.index;
+    size_t o_end = other.index + other.length;
+    string new_data;
+    if (n_index <= o_index && n_end <= o_end) {
+        new_data = new_seg.data + other.data.substr(n_end - o_index, n_end - o_end);
+    } else if (n_index <= o_index && n_end >= o_end) {
+        new_data = new_seg.data;
+    } else if (n_index >= o_index && n_end <= o_end) {
+        new_data =
+            other.data.substr(0, n_index - o_index) + new_seg.data + other.data.substr(n_end - o_index, n_end - o_end);
+    } else /* if (n_index >= o_index && n_end <= o_end) */ {
+        new_data = other.data.substr(0, n_index - o_index) + new_seg.data;
+    }
+    new_seg.index = n_index < o_index ? n_index : o_index;
+    new_seg.length = (n_end > o_end ? n_end : o_end) - new_seg.index;
+    new_seg.data = new_data;
+}
+
+size_t StreamReassembler::unassembled_bytes() const {
+    size_t unassembled_bytes = 0;
+    for (auto it = _stored_segs.begin(); it != _stored_segs.end(); ++it)
+        unassembled_bytes += it->length;
+    return unassembled_bytes;
+}
+
+bool StreamReassembler::empty() const { return unassembled_bytes() == 0; }

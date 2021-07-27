@@ -4,9 +4,8 @@
 #include "byte_stream.hh"
 
 #include <cstdint>
-#include <string>
 #include <set>
-
+#include <string>
 
 //! \brief A class that assembles a series of excerpts from a byte stream (possibly out of order,
 //! possibly overlapping) into an in-order byte stream.
@@ -14,22 +13,25 @@ class StreamReassembler {
   private:
     // Your code here -- add private members as necessary.
 
-    struct Node {
-        std::string data;
-        size_t left;
-        size_t right;
-        bool eof;
-
-        Node() = default;
-        Node(std::string _data, size_t _left, size_t _right, bool _eof);
-        bool operator<(const struct Node &that) const;
-    };
-
     ByteStream _output;  //!< The reassembled in-order byte stream
     size_t _capacity;    //!< The maximum number of bytes
-    std::set<Node> _st;
+    size_t _first_unread = 0;
+    size_t _first_unassembled = 0;
+    size_t _first_unacceptable;
+    bool _eof = false;
+    struct seg {
+        size_t index;
+        size_t length;
+        std::string data;
+        bool operator<(const seg t) const { return index < t.index; }
+    };
+    std::set<seg> _stored_segs = {};
 
-    Node merge(Node &a, Node &b);
+    void _add_new_seg(seg &new_seg, const bool eof);
+    void _handle_overlap(seg &new_seg);
+    void _stitch_output();
+    void _stitch_one_seg(const seg &new_seg);
+    void _merge_seg(seg &new_seg, const seg &other);
 
   public:
     //! \brief Construct a `StreamReassembler` that will store up to `capacity` bytes.
@@ -62,6 +64,8 @@ class StreamReassembler {
     //! \brief Is the internal state empty (other than the output stream)?
     //! \returns `true` if no substrings are waiting to be assembled
     bool empty() const;
+
+    size_t first_unassembled() const { return _first_unassembled; }
 };
 
 #endif  // SPONGE_LIBSPONGE_STREAM_REASSEMBLER_HH

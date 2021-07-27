@@ -24,8 +24,8 @@ class TCPConnection {
     size_t _time_since_last_segment_received{0};
 
     TCPSegment get_segment();
-    void unclean_shutdown(bool send_rst);
-    // void clean_shutdown();
+    void unclean_shutdown();
+    bool clean_shutdown() const;
     bool connection_done() const;
 
   public:

@@ -49,7 +49,7 @@ class TCPSender {
     //! the (absolute) sequence number for the next byte to be sent
     uint64_t _next_seqno{0};
     // ! the absolute sequence number of last received `acknowledge number`
-    uint64_t _last_recv_ackno{0};
+    uint64_t _last_ackno{0};
 
     //! 'window size' and 'remain window size'
     uint16_t _receiver_window_size{1};
@@ -66,6 +66,8 @@ class TCPSender {
     int _state;
 
     void send_segment(TCPSegment &seg);
+
+    bool valid_ackno(uint64_t abs_ackno);
 
   public:
     //! Initialize a TCPSender

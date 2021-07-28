@@ -96,8 +96,6 @@ bool TCPSender::valid_ackno(uint64_t abs_ackno) {
 void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_size) { 
     uint64_t abs_ackno = unwrap(ackno, _isn, _next_seqno);
     if (!valid_ackno(abs_ackno)) return ;
-    _receiver_window_size = window_size;
-    _receiver_remain_size = window_size;
     //! pop the full acked segments.
     while (!_retransmission_timer._que.empty()) {
         uint64_t right = unwrap(_retransmission_timer._que.front().header().seqno, _isn, _next_seqno) + 
@@ -112,6 +110,7 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
         }
         else break;
     }
+    _receiver_window_size = window_size;
     _receiver_remain_size = static_cast<uint16_t>(
         abs_ackno + static_cast<uint64_t>(window_size) - _next_seqno
     );

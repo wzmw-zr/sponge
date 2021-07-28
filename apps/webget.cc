@@ -1,4 +1,5 @@
-#include "socket.hh"
+// #include "socket.hh"
+#include "tcp_sponge_socket.hh"
 #include "util.hh"
 
 #include <cstdlib>
@@ -8,13 +9,15 @@ using namespace std;
 
 void get_URL(const string &host, const string &path) {
     // Your code here.
-    TCPSocket tcp_socket = TCPSocket();
+    // TCPSocket tcp_socket = TCPSocket();
+    CS144TCPSocket tcp_socket = CS144TCPSocket();
     tcp_socket.connect(Address(host, "http"));
     tcp_socket.write("GET " + path + " HTTP/1.1\r\n");
     tcp_socket.write("Host: " + host + "\r\n");
     tcp_socket.write("Connection: close\r\n");
     tcp_socket.write("\r\n");
     while (!tcp_socket.eof()) cout << tcp_socket.read();
+    tcp_socket.wait_until_closed();
     // You will need to connect to the "http" service on
     // the computer whose name is in the "host" string,
     // then request the URL path given in the "path" string.

@@ -112,12 +112,9 @@ void TCPSender::ack_received(const WrappingInt32 ackno, const uint16_t window_si
         }
         else break;
     }
-    if (!_retransmission_timer._que.empty()) {
-        _receiver_remain_size = static_cast<uint16_t>(
-            abs_ackno + static_cast<uint64_t>(window_size) - 
-            unwrap(_retransmission_timer._que.front().header().seqno, _isn, _next_seqno) - _retransmission_timer._bytes_in_flight
-            ); 
-    }
+    _receiver_remain_size = static_cast<uint16_t>(
+        abs_ackno + static_cast<uint64_t>(window_size) - _next_seqno
+    );
     if (!_retransmission_timer._bytes_in_flight) {
         _retransmission_timer._working = false;
     }

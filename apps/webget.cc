@@ -10,7 +10,8 @@ using namespace std;
 void get_URL(const string &host, const string &path) {
     // Your code here.
     // TCPSocket tcp_socket = TCPSocket();
-    CS144TCPSocket tcp_socket = CS144TCPSocket();
+    // CS144TCPSocket tcp_socket = CS144TCPSocket();
+    FullStackSocket tcp_socket = FullStackSocket();
     tcp_socket.connect(Address(host, "http"));
     tcp_socket.write("GET " + path + " HTTP/1.1\r\n");
     tcp_socket.write("Host: " + host + "\r\n");

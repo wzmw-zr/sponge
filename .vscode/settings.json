@@ -1,5 +1,8 @@
 {
     "files.associations": {
-        "iostream": "cpp"
+        "iostream": "cpp",
+        "stdexcept": "cpp",
+        "utility": "cpp",
+        "cstdint": "cpp"
     }
 }

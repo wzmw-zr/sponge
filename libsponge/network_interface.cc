@@ -18,6 +18,7 @@ void DUMMY_CODE(Targs &&... /* unused */) {}
 
 using namespace std;
 
+//! This is the Network Interface Under IP Protocol.
 //! \param[in] ethernet_address Ethernet (what ARP calls "hardware") address of the interface
 //! \param[in] ip_address IP (what ARP calls "protocol") address of the interface
 NetworkInterface::NetworkInterface(const EthernetAddress &ethernet_address, const Address &ip_address)
